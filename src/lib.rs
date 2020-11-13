@@ -17,7 +17,8 @@
 extern crate alloc;
 
 use core::mem::MaybeUninit;
-use core::ptr::NonNull;
+use core::ptr::{NonNull, copy_nonoverlapping};
+use core::slice;
 
 #[doc(hidden)]
 pub mod export;
@@ -166,7 +167,12 @@ pub struct Str {
 /// Handle to a defmt logger.
 pub struct Formatter {
     #[cfg(not(target_arch = "x86_64"))]
-    writer: NonNull<dyn Write>,
+    ptr: *mut u8,
+    #[cfg(not(target_arch = "x86_64"))]
+    len: usize,
+    #[cfg(not(target_arch = "x86_64"))]
+    pos: usize,
+
     #[cfg(target_arch = "x86_64")]
     bytes: Vec<u8>,
     bool_flags: u8, // the current group of consecutive bools
@@ -192,6 +198,17 @@ impl Formatter {
             omit_tag: false,
         }
     }
+    #[cfg(not(target_arch = "x86_64"))]
+    pub fn new(ptr: *mut u8, len: usize) -> Self {
+        Self {
+            ptr,
+            len,
+            pos: 0,
+            bool_flags: 0,
+            bools_left: MAX_NUM_BOOL_FLAGS,
+            omit_tag: false,
+        }
+    }
 
     /// Only for testing on x86_64
     #[cfg(target_arch = "x86_64")]
@@ -205,8 +222,13 @@ impl Formatter {
     }
 
     #[cfg(not(target_arch = "x86_64"))]
+    #[inline(always)]
     pub fn write(&mut self, bytes: &[u8]) {
-        unsafe { self.writer.as_mut().write(bytes) }
+        if self.pos + bytes.len() > self.len {
+            self.flush()
+        }
+        unsafe { copy_nonoverlapping(bytes.as_ptr(), self.ptr.add(self.pos), bytes.len()) };
+        self.pos += bytes.len();
     }
 
     /// Implementation detail
@@ -216,30 +238,22 @@ impl Formatter {
     }
 
     /// Implementation detail
-    #[cfg(not(target_arch = "x86_64"))]
-    pub unsafe fn from_raw(writer: NonNull<dyn Write>) -> Self {
-        Self {
-            writer,
-            bool_flags: 0,
-            bools_left: MAX_NUM_BOOL_FLAGS,
-            omit_tag: false,
-        }
-    }
-
-    /// Implementation detail
     #[cfg(target_arch = "x86_64")]
     pub unsafe fn into_raw(self) -> NonNull<dyn Write> {
         unreachable!()
     }
 
-    /// Implementation detail
     #[cfg(not(target_arch = "x86_64"))]
-    pub unsafe fn into_raw(self) -> NonNull<dyn Write> {
-        self.writer
+    #[inline(always)]
+    pub fn flush(&mut self) {
+        let buf = unsafe { slice::from_raw_parts(self.ptr, self.pos)};
+        export::write(buf);
+        self.pos = 0;
     }
 
     // TODO turn these public methods in `export` free functions
     /// Implementation detail
+    #[inline(always)]
     pub fn fmt(&mut self, f: &impl Format, omit_tag: bool) {
         let old_omit_tag = self.omit_tag;
         if omit_tag {
@@ -269,44 +283,39 @@ impl Formatter {
     }
 
     /// Implementation detail
-    /// leb64-encode `x` and write it to self.bytes
-    pub fn leb64(&mut self, x: u64) {
-        // FIXME: Avoid 64-bit arithmetic on 32-bit systems. This should only be used for
-        // pointer-sized values.
-        let mut buf: [u8; 10] = unsafe { MaybeUninit::uninit().assume_init() };
-        let i = unsafe { leb::leb64(x, &mut buf) };
-        self.write(unsafe { buf.get_unchecked(..i) })
-    }
-
-    /// Implementation detail
+    #[inline(always)]
     pub fn i8(&mut self, b: &i8) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn i16(&mut self, b: &i16) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn i32(&mut self, b: &i32) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn i64(&mut self, b: &i64) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn isize(&mut self, b: &isize) {
-        // Zig-zag encode the signed value.
-        self.leb64(leb::zigzag_encode(*b as i64));
+        self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn fmt_slice(&mut self, values: &[impl Format]) {
-        self.leb64(values.len() as u64);
+        self.usize(&values.len());
         let mut is_first = true;
         for value in values {
             let omit_tag = !is_first;
@@ -317,56 +326,67 @@ impl Formatter {
 
     // TODO remove
     /// Implementation detail
+    #[inline(always)]
     pub fn prim(&mut self, s: &Str) {
         self.write(&[s.address as u8])
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn u8(&mut self, b: &u8) {
         self.write(&[*b])
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn u16(&mut self, b: &u16) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn u24(&mut self, b: &u32) {
         self.write(&b.to_le_bytes()[..3])
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn u32(&mut self, b: &u32) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn u64(&mut self, b: &u64) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn usize(&mut self, b: &usize) {
-        self.leb64(*b as u64);
+        self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn f32(&mut self, b: &f32) {
         self.write(&f32::to_bits(*b).to_le_bytes())
     }
 
+    #[inline(always)]
     pub fn str(&mut self, s: &str) {
-        self.leb64(s.len() as u64);
+        self.usize(&s.len());
         self.write(s.as_bytes());
     }
 
+    #[inline(always)]
     pub fn slice(&mut self, s: &[u8]) {
-        self.leb64(s.len() as u64);
+        self.usize(&s.len());
         self.write(s);
     }
 
     // NOTE: This is passed `&[u8; N]` – it's just coerced to a slice.
+    #[inline(always)]
     pub fn u8_array(&mut self, a: &[u8]) {
         self.write(a);
     }
@@ -382,16 +402,13 @@ impl Formatter {
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn istr(&mut self, s: &Str) {
-        // LEB128 encoding
-        if s.address < 128 {
-            self.write(&[s.address as u8])
-        } else {
-            self.write(&[s.address as u8 | (1 << 7), (s.address >> 7) as u8])
-        }
+        self.u16(&s.address)
     }
 
     /// Implementation detail
+    #[inline(always)]
     pub fn bool(&mut self, b: &bool) {
         let b_u8 = *b as u8;
         // set n'th bool flag
@@ -405,6 +422,7 @@ impl Formatter {
     }
 
     /// The last pass in a formatting run: clean up & flush leftovers
+    #[inline(always)]
     pub fn finalize(&mut self) {
         if self.bools_left < MAX_NUM_BOOL_FLAGS {
             // there are bools in compression that haven't been flushed yet
@@ -412,6 +430,7 @@ impl Formatter {
         }
     }
 
+    #[inline(always)]
     fn flush_and_reset_bools(&mut self) {
         let flags = self.bool_flags;
         self.u8(&flags);

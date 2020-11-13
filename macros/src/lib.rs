@@ -421,14 +421,12 @@ fn log(level: Level, ts: TokenStream) -> TokenStream {
         if #logging_enabled {
             match (#(&(#args)),*) {
                 (#(#pats),*) => {
-                    let ts = defmt::export::timestamp();
-                    if let Some(mut _fmt_) = defmt::export::acquire() {
-                        _fmt_.istr(&defmt::export::istr(#sym));
-                        _fmt_.leb64(ts);
-                        #(#exprs;)*
-                        _fmt_.finalize();
-                        defmt::export::release(_fmt_)
-                    }
+                    let mut _buf_ = ::core::mem::MaybeUninit::<[u8; 256]>::uninit();
+                    let mut _fmt_ = defmt::Formatter::new(_buf_.as_mut_ptr() as *mut u8, 256);
+                    _fmt_.istr(&defmt::export::istr(#sym));
+                    #(#exprs;)*
+                    _fmt_.finalize();
+                    _fmt_.flush();
                 }
             }
         }

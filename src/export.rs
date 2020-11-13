@@ -1,5 +1,7 @@
 use crate::{Formatter, Str};
 
+pub use defmt_macros::write;
+
 #[cfg(target_arch = "x86_64")]
 thread_local! {
     static I: core::sync::atomic::AtomicU8 =
@@ -65,6 +67,16 @@ pub fn timestamp() -> u64 {
     }
     unsafe { _defmt_timestamp() }
 }
+
+
+#[cfg(not(target_arch = "x86_64"))]
+pub fn write(buf: &[u8]) {
+    extern "Rust" {
+        fn _defmt_write(buf: &[u8]);
+    }
+    unsafe { _defmt_write(buf) }
+}
+
 
 /// Returns the interned string at `address`.
 pub fn istr(address: usize) -> Str {
