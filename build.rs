@@ -5,6 +5,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Put the linker script somewhere the linker can find it
     let out = &PathBuf::from(env::var("OUT_DIR")?);
     let mut linker_script = fs::read_to_string("defmt.x.in")?;
+    /*
     let hash = Command::new("git")
         .args(&["rev-parse", "HEAD"])
         .output()
@@ -34,6 +35,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             semver.major.to_string()
         }
     };
+     */
+    let version = "0.2";
     linker_script = linker_script.replace("$DEFMT_VERSION", version.trim());
     fs::write(out.join("defmt.x"), linker_script)?;
     println!("cargo:rustc-link-search={}", out.display());

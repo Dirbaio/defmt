@@ -10,6 +10,7 @@ use semver::Version;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let out = &PathBuf::from(env::var("OUT_DIR")?);
+    /*
     let hash = Command::new("git")
         .args(&["rev-parse", "HEAD"])
         .output()
@@ -36,6 +37,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             semver.major.to_string()
         }
     };
+    */
+
+    let version = "0.2";
 
     fs::write(
         out.join("version.rs"),
