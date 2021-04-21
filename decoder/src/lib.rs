@@ -205,10 +205,6 @@ impl Table {
             .map_err(|_| DecodeError::Malformed)?;
 
         let args = decoder.decode_format(format)?;
-        if !decoder.bools_tbd.is_empty() {
-            // Flush end of compression block.
-            decoder.read_and_unpack_bools()?;
-        }
 
         let frame = Frame::new(level, index, timestamp_format, timestamp_args, format, args);
 
