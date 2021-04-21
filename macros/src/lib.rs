@@ -77,7 +77,7 @@ pub fn global_logger(args: TokenStream, input: TokenStream) -> TokenStream {
         #vis struct #ident;
 
         #[no_mangle]
-        unsafe fn _defmt_acquire() -> bool {
+        unsafe fn _defmt_acquire()  {
             <#ident as defmt::Logger>::acquire()
         }
 
@@ -517,13 +517,12 @@ fn log(level: Level, log: FormatArgs) -> TokenStream2 {
         if #logging_enabled {
             match (#(&(#args)),*) {
                 (#(#pats),*) => {
-                    if defmt::export::acquire() {
-                        let mut _fmt_ = defmt::InternalFormatter::new();
-                        _fmt_.header(&defmt::export::istr(#sym));
-                        #(#exprs;)*
-                        _fmt_.finalize();
-                        defmt::export::release()
-                    }
+                    defmt::export::acquire();
+                    let mut _fmt_ = defmt::InternalFormatter::new();
+                    _fmt_.header(&defmt::export::istr(#sym));
+                    #(#exprs;)*
+                    _fmt_.finalize();
+                    defmt::export::release()
                 }
             }
         }

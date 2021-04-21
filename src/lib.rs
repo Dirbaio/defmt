@@ -297,7 +297,7 @@ pub unsafe trait Logger {
     /// Returns a handle to the global logger
     ///
     /// For the requirements of the method see the documentation of the `Logger` trait
-    fn acquire() -> bool;
+    fn acquire();
 
     /// Releases the global logger
     ///

@@ -7,7 +7,7 @@
 
 #![no_std]
 
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use cortex_m::{interrupt, register};
 use cortex_m_semihosting::hio;
@@ -15,44 +15,37 @@ use cortex_m_semihosting::hio;
 #[defmt::global_logger]
 struct Logger;
 
-static TAKEN: AtomicBool = AtomicBool::new(false);
+static TAKEN: AtomicUsize = AtomicUsize::new(0);
 static INTERRUPTS_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 unsafe impl defmt::Logger for Logger {
-    fn acquire() -> bool {
+    fn acquire() {
         let primask = register::primask::read();
         interrupt::disable();
-
-        if !TAKEN.load(Ordering::Relaxed) {
-            // NOTE(no-CAS) interrupts are disabled
-            TAKEN.store(true, Ordering::Relaxed);
-
+        let taken = TAKEN.load(Ordering::Relaxed);
+        TAKEN.store(taken + 1, Ordering::Relaxed);
+        if taken == 0 {
             INTERRUPTS_ACTIVE.store(primask.is_active(), Ordering::Relaxed);
-
-            true
-        } else {
-            if primask.is_active() {
-                // re-enable interrupts
-                unsafe { interrupt::enable() }
-            }
-            false
         }
     }
 
     unsafe fn release() {
-        // NOTE(no-CAS) interrupts still disabled
-        TAKEN.store(false, Ordering::Relaxed);
-
-        if INTERRUPTS_ACTIVE.load(Ordering::Relaxed) {
-            // re-enable interrupts
-            interrupt::enable()
+        let taken = TAKEN.load(Ordering::Relaxed);
+        TAKEN.store(taken - 1, Ordering::Relaxed);
+        if taken == 1 {
+            if INTERRUPTS_ACTIVE.load(Ordering::Relaxed) {
+                // re-enable interrupts
+                interrupt::enable()
+            }
         }
     }
 
     unsafe fn write(bytes: &[u8]) {
-        // using QEMU; it shouldn't mind us opening several handles (I hope)
-        if let Ok(mut hstdout) = hio::hstdout() {
-            hstdout.write_all(bytes).ok();
+        if TAKEN.load(Ordering::Relaxed) == 1 {
+            // using QEMU; it shouldn't mind us opening several handles (I hope)
+            if let Ok(mut hstdout) = hio::hstdout() {
+                hstdout.write_all(bytes).ok();
+            }
         }
     }
 }

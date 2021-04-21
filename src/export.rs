@@ -23,15 +23,15 @@ pub fn fetch_add_string_index() -> usize {
 }
 
 #[cfg(feature = "unstable-test")]
-pub fn acquire() -> bool {
+pub fn acquire() {
     false
 }
 
 #[cfg(not(feature = "unstable-test"))]
 #[inline(never)]
-pub fn acquire() -> bool {
+pub fn acquire() {
     extern "Rust" {
-        fn _defmt_acquire() -> bool;
+        fn _defmt_acquire();
     }
     unsafe { _defmt_acquire() }
 }
