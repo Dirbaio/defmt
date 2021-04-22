@@ -175,7 +175,7 @@ pub fn timestamp(ts: TokenStream) -> TokenStream {
             const _: () = {
                 #[allow(unused)]
                 fn defmt_timestamp(fmt: ::defmt::Formatter<'_>) {
-                    match (fmt.inner, #(&(#args)),*) {
+                    match (fmt.reborrow(), #(&(#args)),*) {
                         (_fmt_, #(#pats),*) => {
                             // NOTE: No format string index, and no finalize call.
                             #(#exprs;)*
@@ -190,7 +190,7 @@ pub fn timestamp(ts: TokenStream) -> TokenStream {
             const _: () = {
                 #[export_name = "_defmt_timestamp"]
                 fn defmt_timestamp(fmt: ::defmt::Formatter<'_>) {
-                    match (fmt.inner, #(&(#args)),*) {
+                    match (fmt.reborrow(), #(&(#args)),*) {
                         (_fmt_, #(#pats),*) => {
                             // NOTE: No format string index, and no finalize call.
                             #(#exprs;)*
@@ -280,19 +280,19 @@ pub fn format(ts: TokenStream) -> TokenStream {
                         quote!()
                     } else if let (Ok(_), Ok(i)) = (u8::try_from(len), u8::try_from(i)) {
                         quote!(
-                            f.inner.u8(&#i);
+                            f.u8(&#i);
                         )
                     } else if let (Ok(_), Ok(i)) = (u16::try_from(len), u16::try_from(i)) {
                         quote!(
-                            f.inner.u16(&#i);
+                            f.u16(&#i);
                         )
                     } else if let (Ok(_), Ok(i)) = (u32::try_from(len), u32::try_from(i)) {
                         quote!(
-                            f.inner.u32(&#i);
+                            f.u32(&#i);
                         )
                     } else if let (Ok(_), Ok(i)) = (u64::try_from(len), u64::try_from(i)) {
                         quote!(
-                            f.inner.u64(&#i);
+                            f.u64(&#i);
                         )
                     } else {
                         // u128 case is omitted with the assumption, that usize is never greater than u64
@@ -314,7 +314,7 @@ pub fn format(ts: TokenStream) -> TokenStream {
 
                 let sym = mksym(&fs, "derived", false);
                 exprs.push(quote!(
-                    f.inner.istr(&defmt::export::istr(#sym));
+                    f.istr(&defmt::export::istr(#sym));
                 ));
                 exprs.push(quote!(match self {
                     #(#arms)*
@@ -329,7 +329,7 @@ pub fn format(ts: TokenStream) -> TokenStream {
 
             let sym = mksym(&fs, "derived", false);
             exprs.push(quote!(
-                f.inner.istr(&defmt::export::istr(#sym));
+                f.istr(&defmt::export::istr(#sym));
             ));
             exprs.push(quote!(match self {
                 Self { #(#pats),* } => {
@@ -407,10 +407,10 @@ fn fields(
                         core::write!(format, "{}: {{={}}}", ident, ty).ok();
 
                         if ty == "?" {
-                            list.push(quote!(f.inner.fmt(#ident)));
+                            list.push(quote!(f.fmt(#ident)));
                         } else {
                             let method = format_ident!("{}", ty);
-                            list.push(quote!(f.inner.#method(#ident)));
+                            list.push(quote!(f.#method(#ident)));
                         }
                         pats.push(quote!( #ident ));
                     } else {
@@ -420,10 +420,10 @@ fn fields(
 
                         let ident = format_ident!("arg{}", i);
                         if ty == "?" {
-                            list.push(quote!(f.inner.fmt(#ident)));
+                            list.push(quote!(f.fmt(#ident)));
                         } else {
                             let method = format_ident!("{}", ty);
-                            list.push(quote!(f.inner.#method(#ident)));
+                            list.push(quote!(f.#method(#ident)));
                         }
 
                         let i = syn::Index::from(i);
@@ -507,7 +507,7 @@ fn log(level: Level, log: FormatArgs) -> TokenStream2 {
             match (#(&(#args)),*) {
                 (#(#pats),*) => {
                     defmt::export::acquire();
-                    let mut _fmt_ = defmt::InternalFormatter::new();
+                    let mut _fmt_ = defmt::Formatter::new();
                     _fmt_.header(&defmt::export::istr(#sym));
                     #(#exprs;)*
                     defmt::export::release()
@@ -975,7 +975,7 @@ pub fn write(ts: TokenStream) -> TokenStream {
     let sym = mksym(&ls, "write", false);
     quote!({
         let fmt: defmt::Formatter<'_> = #fmt;
-        match (fmt.inner, #(&(#args)),*) {
+        match (fmt.reborrow(), #(&(#args)),*) {
             (_fmt_, #(#pats),*) => {
                 _fmt_.istr(&defmt::export::istr(#sym));
                 #(#exprs;)*

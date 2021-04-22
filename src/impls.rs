@@ -6,120 +6,120 @@ use crate::{Format, Formatter, Str};
 impl Format for i8 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=i8}");
-        fmt.inner.tag(&t);
-        fmt.inner.u8(&(*self as u8));
+        fmt.tag(&t);
+        fmt.u8(&(*self as u8));
     }
 }
 
 impl Format for i16 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=i16}");
-        fmt.inner.tag(&t);
-        fmt.inner.u16(&(*self as u16))
+        fmt.tag(&t);
+        fmt.u16(&(*self as u16))
     }
 }
 
 impl Format for i32 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=i32}");
-        fmt.inner.tag(&t);
-        fmt.inner.i32(self);
+        fmt.tag(&t);
+        fmt.i32(self);
     }
 }
 
 impl Format for i64 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=i64}");
-        fmt.inner.tag(&t);
-        fmt.inner.i64(self);
+        fmt.tag(&t);
+        fmt.i64(self);
     }
 }
 
 impl Format for i128 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=i128}");
-        fmt.inner.tag(&t);
-        fmt.inner.i128(self);
+        fmt.tag(&t);
+        fmt.i128(self);
     }
 }
 
 impl Format for isize {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=isize}");
-        fmt.inner.tag(&t);
-        fmt.inner.isize(self);
+        fmt.tag(&t);
+        fmt.isize(self);
     }
 }
 
 impl Format for u8 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=u8}");
-        fmt.inner.tag(&t);
-        fmt.inner.u8(self)
+        fmt.tag(&t);
+        fmt.u8(self)
     }
 }
 
 impl Format for u16 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=u16}");
-        fmt.inner.tag(&t);
-        fmt.inner.u16(self);
+        fmt.tag(&t);
+        fmt.u16(self);
     }
 }
 
 impl Format for u32 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=u32}");
-        fmt.inner.tag(&t);
-        fmt.inner.u32(self);
+        fmt.tag(&t);
+        fmt.u32(self);
     }
 }
 
 impl Format for u64 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=u64}");
-        fmt.inner.tag(&t);
-        fmt.inner.u64(self);
+        fmt.tag(&t);
+        fmt.u64(self);
     }
 }
 
 impl Format for u128 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=u128}");
-        fmt.inner.tag(&t);
-        fmt.inner.u128(self);
+        fmt.tag(&t);
+        fmt.u128(self);
     }
 }
 
 impl Format for usize {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=usize}");
-        fmt.inner.tag(&t);
-        fmt.inner.usize(self);
+        fmt.tag(&t);
+        fmt.usize(self);
     }
 }
 
 impl Format for f32 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=f32}");
-        fmt.inner.tag(&t);
-        fmt.inner.f32(self);
+        fmt.tag(&t);
+        fmt.f32(self);
     }
 }
 
 impl Format for f64 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=f64}");
-        fmt.inner.tag(&t);
-        fmt.inner.f64(self);
+        fmt.tag(&t);
+        fmt.f64(self);
     }
 }
 
 impl Format for str {
     fn format(&self, fmt: Formatter) {
         let t = str_tag();
-        fmt.inner.tag(&t);
-        fmt.inner.str(self);
+        fmt.tag(&t);
+        fmt.str(self);
     }
 }
 
@@ -130,16 +130,16 @@ pub(crate) fn str_tag() -> u16 {
 impl Format for Str {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=istr}");
-        fmt.inner.tag(&t);
-        fmt.inner.istr(self);
+        fmt.tag(&t);
+        fmt.istr(self);
     }
 }
 
 impl Format for char {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=char}");
-        fmt.inner.tag(&t);
-        fmt.inner.u32(&(*self as u32));
+        fmt.tag(&t);
+        fmt.u32(&(*self as u32));
     }
 }
 
@@ -149,8 +149,8 @@ where
 {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=[?]}");
-        fmt.inner.tag(&t);
-        fmt.inner.fmt_slice(self)
+        fmt.tag(&t);
+        fmt.fmt_slice(self)
     }
 }
 
@@ -175,8 +175,8 @@ where
 impl Format for bool {
     fn format(&self, fmt: Formatter) {
         let t = internp!("{=bool}");
-        fmt.inner.tag(&t);
-        fmt.inner.bool(self);
+        fmt.tag(&t);
+        fmt.bool(self);
     }
 }
 
@@ -188,8 +188,8 @@ macro_rules! arrays {
         {
             fn format(&self, fmt: Formatter) {
                     let t = internp!($fmt);
-                    fmt.inner.tag(&t);
-                fmt.inner.fmt_array(self);
+                    fmt.tag(&t);
+                fmt.fmt_array(self);
             }
         }
     )+ };
@@ -270,11 +270,11 @@ where
 {
     fn format(&self, f: Formatter) {
         let t = internp!("None|Some({=?})");
-        f.inner.tag(&t);
+        f.tag(&t);
         match self {
-            None => f.inner.u8(&0),
+            None => f.u8(&0),
             Some(x) => {
-                f.inner.u8(&1);
+                f.u8(&1);
                 x.format(f)
             }
         }
@@ -288,14 +288,14 @@ where
 {
     fn format(&self, f: Formatter) {
         let t = internp!("Err({=?})|Ok({=?})");
-        f.inner.tag(&t);
+        f.tag(&t);
         match self {
             Err(e) => {
-                f.inner.u8(&0);
+                f.u8(&0);
                 e.format(f)
             }
             Ok(x) => {
-                f.inner.u8(&1);
+                f.u8(&1);
                 x.format(f)
             }
         }
@@ -305,14 +305,14 @@ where
 impl Format for () {
     fn format(&self, f: Formatter) {
         let t = internp!("()");
-        f.inner.tag(&t);
+        f.tag(&t);
     }
 }
 
 impl<T> Format for core::marker::PhantomData<T> {
     fn format(&self, f: Formatter) {
         let t = internp!("PhantomData");
-        f.inner.tag(&t);
+        f.tag(&t);
     }
 }
 
@@ -322,12 +322,11 @@ macro_rules! tuple {
             #[allow(non_snake_case, unused_assignments)]
             fn format(&self, f: Formatter) {
                     let t = internp!($format);
-                    f.inner.tag(&t);
+                    f.tag(&t);
 
                 let ($(ref $name,)+) = *self;
                 $(
-                    let formatter = Formatter { inner: f.inner };
-                    $name.format(formatter);
+                    $name.format(f.reborrow());
                 )+
             }
         }

@@ -23,6 +23,7 @@ use crate as defmt;
 
 use core::fmt;
 use core::fmt::Write as _;
+use core::marker::PhantomData;
 
 #[doc(hidden)]
 pub mod export;
@@ -326,85 +327,79 @@ pub struct Str {
     address: u16,
 }
 
-#[doc(hidden)]
-pub struct InternalFormatter {
-    #[cfg(feature = "unstable-test")]
-    bytes: Vec<u8>,
-}
-
 /// Handle to a defmt logger.
 pub struct Formatter<'a> {
-    /// Keep the formatter alive
-    #[doc(hidden)]
-    pub inner: &'a mut InternalFormatter,
+    _phantom: PhantomData<&'a mut ()>,
 }
 
 #[doc(hidden)]
-impl InternalFormatter {
+impl<'a> Formatter<'a> {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            #[cfg(feature = "unstable-test")]
-            bytes: vec![],
+            _phantom: PhantomData,
         }
+    }
+
+    pub fn reborrow<'b>(&'b self) -> Formatter<'b> {
+        Formatter::new()
     }
 
     /// Only for testing
     #[cfg(feature = "unstable-test")]
-    pub fn bytes(&mut self) -> &[u8] {
+    pub fn bytes(&self) -> &[u8] {
         self.finalize();
         &self.bytes
     }
 
     #[cfg(feature = "unstable-test")]
-    pub fn write(&mut self, bytes: &[u8]) {
+    pub fn write(&self, bytes: &[u8]) {
         self.bytes.extend_from_slice(bytes)
     }
 
     #[cfg(not(feature = "unstable-test"))]
-    pub fn write(&mut self, bytes: &[u8]) {
+    pub fn write(&self, bytes: &[u8]) {
         export::write(bytes)
     }
 
     // TODO turn these public methods in `export` free functions
     /// Implementation detail
-    pub fn fmt(&mut self, f: &impl Format) {
-        let formatter = Formatter { inner: self };
-        f.format(formatter);
+    pub fn fmt(&self, f: &impl Format) {
+        f.format(self.reborrow());
     }
 
     /// Implementation detail
-    pub fn i8(&mut self, b: &i8) {
+    pub fn i8(&self, b: &i8) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn i16(&mut self, b: &i16) {
+    pub fn i16(&self, b: &i16) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn i32(&mut self, b: &i32) {
+    pub fn i32(&self, b: &i32) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn i64(&mut self, b: &i64) {
+    pub fn i64(&self, b: &i64) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn i128(&mut self, b: &i128) {
+    pub fn i128(&self, b: &i128) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn isize(&mut self, b: &isize) {
+    pub fn isize(&self, b: &isize) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn fmt_slice(&mut self, values: &[impl Format]) {
+    pub fn fmt_slice(&self, values: &[impl Format]) {
         self.usize(&values.len());
         for value in values {
             self.fmt(value);
@@ -413,113 +408,127 @@ impl InternalFormatter {
 
     // TODO remove
     /// Implementation detail
-    pub fn prim(&mut self, s: &Str) {
+    pub fn prim(&self, s: &Str) {
         self.write(&[s.address as u8])
     }
 
     /// Implementation detail
-    pub fn u8(&mut self, b: &u8) {
+    pub fn u8(&self, b: &u8) {
         self.write(&[*b])
     }
 
     /// Implementation detail
-    pub fn u16(&mut self, b: &u16) {
+    pub fn u16(&self, b: &u16) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn u24(&mut self, b: &u32) {
+    pub fn u24(&self, b: &u32) {
         self.write(&b.to_le_bytes()[..3])
     }
 
     /// Implementation detail
-    pub fn u32(&mut self, b: &u32) {
+    pub fn u32(&self, b: &u32) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn u64(&mut self, b: &u64) {
+    pub fn u64(&self, b: &u64) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn u128(&mut self, b: &u128) {
+    pub fn u128(&self, b: &u128) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn usize(&mut self, b: &usize) {
+    pub fn usize(&self, b: &usize) {
         self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn f32(&mut self, b: &f32) {
+    pub fn f32(&self, b: &f32) {
         self.write(&f32::to_bits(*b).to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn f64(&mut self, b: &f64) {
+    pub fn f64(&self, b: &f64) {
         self.write(&f64::to_bits(*b).to_le_bytes())
     }
 
-    pub fn str(&mut self, s: &str) {
+    pub fn str(&self, s: &str) {
         self.usize(&s.len());
         self.write(s.as_bytes());
     }
 
-    pub fn slice(&mut self, s: &[u8]) {
+    pub fn slice(&self, s: &[u8]) {
         self.usize(&s.len());
         self.write(s);
     }
 
     // NOTE: This is passed `&[u8; N]` – it's just coerced to a slice.
-    pub fn u8_array(&mut self, a: &[u8]) {
+    pub fn u8_array(&self, a: &[u8]) {
         self.write(a);
     }
 
     // NOTE: This is passed `&[u8; N]` – it's just coerced to a slice.
-    pub fn fmt_array(&mut self, a: &[impl Format]) {
+    pub fn fmt_array(&self, a: &[impl Format]) {
         for value in a {
             self.fmt(value);
         }
     }
 
     /// Implementation detail
-    pub fn tag(&mut self, tag: &u16) {
+    pub fn tag(&self, tag: &u16) {
         self.write(&tag.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn istr(&mut self, s: &Str) {
+    pub fn istr(&self, s: &Str) {
         self.write(&s.address.to_le_bytes())
     }
 
     /// Implementation detail
-    pub fn bool(&mut self, b: &bool) {
+    pub fn bool(&self, b: &bool) {
         self.u8(&(*b as u8));
     }
 
     /// Implementation detail
-    pub fn debug(&mut self, val: &dyn core::fmt::Debug) {
-        core::write!(FmtWrite { fmt: self }, "{:?}", val).ok();
+    pub fn debug(&self, val: &dyn core::fmt::Debug) {
+        core::write!(
+            FmtWrite {
+                fmt: self.reborrow()
+            },
+            "{:?}",
+            val
+        )
+        .ok();
         self.write(&[0xff]);
     }
 
     /// Implementation detail
-    pub fn display(&mut self, val: &dyn core::fmt::Display) {
-        core::write!(FmtWrite { fmt: self }, "{}", val).ok();
+    pub fn display(&self, val: &dyn core::fmt::Display) {
+        core::write!(
+            FmtWrite {
+                fmt: self.reborrow()
+            },
+            "{}",
+            val
+        )
+        .ok();
         self.write(&[0xff]);
     }
 
     #[inline(never)]
-    pub fn header(&mut self, s: &Str) {
+    pub fn header(&self, s: &Str) {
         self.istr(s);
-        export::timestamp(Formatter { inner: self });
+        export::timestamp(self.reborrow());
     }
 }
 
 struct FmtWrite<'a> {
-    fmt: &'a mut InternalFormatter,
+    fmt: Formatter<'a>,
 }
 
 impl fmt::Write for FmtWrite<'_> {
@@ -611,8 +620,8 @@ pub struct Debug2Format<'a, T: fmt::Debug + ?Sized>(pub &'a T);
 impl<T: fmt::Debug + ?Sized> Format for Debug2Format<'_, T> {
     fn format(&self, fmt: Formatter) {
         let t = defmt_macros::internp!("{=__internal_Debug}");
-        fmt.inner.tag(&t);
-        fmt.inner.debug(&self.0);
+        fmt.tag(&t);
+        fmt.debug(&self.0);
     }
 }
 
@@ -645,7 +654,7 @@ pub struct Display2Format<'a, T: fmt::Display + ?Sized>(pub &'a T);
 impl<T: fmt::Display + ?Sized> Format for Display2Format<'_, T> {
     fn format(&self, fmt: Formatter) {
         let t = defmt_macros::internp!("{=__internal_Display}");
-        fmt.inner.tag(&t);
-        fmt.inner.display(&self.0);
+        fmt.tag(&t);
+        fmt.display(&self.0);
     }
 }
