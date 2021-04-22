@@ -28,9 +28,10 @@ use std::{
     },
 };
 
-use decoder::{read_leb128, Decoder};
+use decoder::Decoder;
 use defmt_parser::Level;
 use elf2table::parse_impl;
+use byteorder::{ReadBytesExt, LE};
 
 pub use elf2table::{Location, Locations};
 pub use frame::Frame;
@@ -188,7 +189,7 @@ impl Table {
         mut bytes: &[u8],
     ) -> Result<(Frame<'t>, /*consumed: */ usize), DecodeError> {
         let len = bytes.len();
-        let index = read_leb128(&mut bytes)?;
+        let index = bytes.read_u16::<LE>()? as u64;
 
         let mut decoder = Decoder::new(self, bytes);
 

@@ -953,7 +953,7 @@ pub fn internp(ts: TokenStream) -> TokenStream {
             #[cfg_attr(not(target_os = "macos"), link_section = #section)]
             #[export_name = #sym]
             static S: u8 = 0;
-            &S as *const u8 as u8
+            &S as *const u8 as u16
         })
     }
     .into()

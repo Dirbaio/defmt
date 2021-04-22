@@ -27,7 +27,6 @@ use core::fmt::Write as _;
 #[doc(hidden)]
 pub mod export;
 mod impls;
-mod leb;
 #[cfg(all(test, feature = "unstable-test"))]
 mod tests;
 //#[cfg(all(test, not(feature = "unstable-test")))]
@@ -406,14 +405,6 @@ impl InternalFormatter {
     }
 
     /// Implementation detail
-    /// leb64-encode `x` and write it to self.bytes
-    pub fn leb64(&mut self, x: usize) {
-        let mut buf: [u8; 10] = [0; 10];
-        let i = leb::leb64(x, &mut buf);
-        self.write(&buf[..i])
-    }
-
-    /// Implementation detail
     pub fn i8(&mut self, b: &i8) {
         self.write(&b.to_le_bytes())
     }
@@ -440,13 +431,12 @@ impl InternalFormatter {
 
     /// Implementation detail
     pub fn isize(&mut self, b: &isize) {
-        // Zig-zag encode the signed value.
-        self.leb64(leb::zigzag_encode(*b));
+        self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
     pub fn fmt_slice(&mut self, values: &[impl Format]) {
-        self.leb64(values.len());
+        self.usize(&values.len());
         let mut is_first = true;
         for value in values {
             let omit_tag = !is_first;
@@ -493,7 +483,7 @@ impl InternalFormatter {
 
     /// Implementation detail
     pub fn usize(&mut self, b: &usize) {
-        self.leb64(*b);
+        self.write(&b.to_le_bytes())
     }
 
     /// Implementation detail
@@ -507,12 +497,12 @@ impl InternalFormatter {
     }
 
     pub fn str(&mut self, s: &str) {
-        self.leb64(s.len());
+        self.usize(&s.len());
         self.write(s.as_bytes());
     }
 
     pub fn slice(&mut self, s: &[u8]) {
-        self.leb64(s.len());
+        self.usize(&s.len());
         self.write(s);
     }
 
@@ -532,13 +522,13 @@ impl InternalFormatter {
     }
 
     /// Implementation detail
+    pub fn tag(&mut self, tag: &u16) {
+        self.write(&tag.to_le_bytes())
+    }
+
+    /// Implementation detail
     pub fn istr(&mut self, s: &Str) {
-        // LEB128 encoding
-        if s.address < 128 {
-            self.write(&[s.address as u8])
-        } else {
-            self.write(&[s.address as u8 | (1 << 7), (s.address >> 7) as u8])
-        }
+        self.write(&s.address.to_le_bytes())
     }
 
     /// Implementation detail
@@ -659,7 +649,7 @@ impl<T: fmt::Debug + ?Sized> Format for Debug2Format<'_, T> {
     fn format(&self, fmt: Formatter) {
         if fmt.inner.needs_tag() {
             let t = defmt_macros::internp!("{=__internal_Debug}");
-            fmt.inner.u8(&t);
+            fmt.inner.tag(&t);
         }
         fmt.inner.debug(&self.0);
     }
@@ -695,7 +685,7 @@ impl<T: fmt::Display + ?Sized> Format for Display2Format<'_, T> {
     fn format(&self, fmt: Formatter) {
         if fmt.inner.needs_tag() {
             let t = defmt_macros::internp!("{=__internal_Display}");
-            fmt.inner.u8(&t);
+            fmt.inner.tag(&t);
         }
         fmt.inner.display(&self.0);
     }

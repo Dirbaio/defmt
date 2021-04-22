@@ -188,7 +188,7 @@ mod sealed {
         fn format(&self, fmt: Formatter) {
             if fmt.inner.needs_tag() {
                 let t = internp!("Unwrap of a None option value");
-                fmt.inner.u8(&t);
+                fmt.inner.tag(&t);
             }
         }
     }
