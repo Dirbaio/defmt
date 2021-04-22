@@ -330,10 +330,6 @@ pub struct Str {
 pub struct InternalFormatter {
     #[cfg(feature = "unstable-test")]
     bytes: Vec<u8>,
-    // whether to omit the tag of a `Format` value
-    // this is disabled while formatting a `{:[?]}` value (second element on-wards)
-    // this is force-enable while formatting enums
-    omit_tag: bool,
 }
 
 /// Handle to a defmt logger.
@@ -350,7 +346,6 @@ impl InternalFormatter {
         Self {
             #[cfg(feature = "unstable-test")]
             bytes: vec![],
-            omit_tag: false,
         }
     }
 
@@ -373,35 +368,9 @@ impl InternalFormatter {
 
     // TODO turn these public methods in `export` free functions
     /// Implementation detail
-    pub fn fmt(&mut self, f: &impl Format, omit_tag: bool) {
-        let old_omit_tag = self.omit_tag;
-        if omit_tag {
-            self.omit_tag = true;
-        }
-
+    pub fn fmt(&mut self, f: &impl Format) {
         let formatter = Formatter { inner: self };
         f.format(formatter);
-
-        if omit_tag {
-            // restore
-            self.omit_tag = old_omit_tag;
-        }
-    }
-
-    /// Implementation detail
-    pub fn needs_tag(&self) -> bool {
-        !self.omit_tag
-    }
-
-    /// Implementation detail
-    pub fn with_tag(&mut self, f: impl FnOnce(Formatter)) {
-        let omit_tag = self.omit_tag;
-        self.omit_tag = false;
-
-        let formatter = Formatter { inner: self };
-        f(formatter);
-        // restore
-        self.omit_tag = omit_tag;
     }
 
     /// Implementation detail
@@ -437,11 +406,8 @@ impl InternalFormatter {
     /// Implementation detail
     pub fn fmt_slice(&mut self, values: &[impl Format]) {
         self.usize(&values.len());
-        let mut is_first = true;
         for value in values {
-            let omit_tag = !is_first;
-            self.fmt(value, omit_tag);
-            is_first = false;
+            self.fmt(value);
         }
     }
 
@@ -513,11 +479,8 @@ impl InternalFormatter {
 
     // NOTE: This is passed `&[u8; N]` – it's just coerced to a slice.
     pub fn fmt_array(&mut self, a: &[impl Format]) {
-        let mut is_first = true;
         for value in a {
-            let omit_tag = !is_first;
-            self.fmt(value, omit_tag);
-            is_first = false;
+            self.fmt(value);
         }
     }
 
@@ -647,10 +610,8 @@ pub struct Debug2Format<'a, T: fmt::Debug + ?Sized>(pub &'a T);
 
 impl<T: fmt::Debug + ?Sized> Format for Debug2Format<'_, T> {
     fn format(&self, fmt: Formatter) {
-        if fmt.inner.needs_tag() {
-            let t = defmt_macros::internp!("{=__internal_Debug}");
-            fmt.inner.tag(&t);
-        }
+        let t = defmt_macros::internp!("{=__internal_Debug}");
+        fmt.inner.tag(&t);
         fmt.inner.debug(&self.0);
     }
 }
@@ -683,10 +644,8 @@ pub struct Display2Format<'a, T: fmt::Display + ?Sized>(pub &'a T);
 
 impl<T: fmt::Display + ?Sized> Format for Display2Format<'_, T> {
     fn format(&self, fmt: Formatter) {
-        if fmt.inner.needs_tag() {
-            let t = defmt_macros::internp!("{=__internal_Display}");
-            fmt.inner.tag(&t);
-        }
+        let t = defmt_macros::internp!("{=__internal_Display}");
+        fmt.inner.tag(&t);
         fmt.inner.display(&self.0);
     }
 }

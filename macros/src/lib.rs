@@ -307,23 +307,14 @@ pub fn format(ts: TokenStream) -> TokenStream {
                     arms.push(quote!(
                         #ident::#vident #pats => {
                             #encode_discriminant
-
-                            // When descending into an enum variant, force all discriminants to be
-                            // encoded. This is required when encoding arrays like `[None, Some(x)]`
-                            // with `{:?}`, since the format string of `x` won't appear for the
-                            // first element.
-                            f.inner.with_tag(|f| {
-                                #(#exprs;)*
-                            });
+                            #(#exprs;)*
                         }
                     ))
                 }
 
                 let sym = mksym(&fs, "derived", false);
                 exprs.push(quote!(
-                    if f.inner.needs_tag() {
-                        f.inner.istr(&defmt::export::istr(#sym));
-                    }
+                    f.inner.istr(&defmt::export::istr(#sym));
                 ));
                 exprs.push(quote!(match self {
                     #(#arms)*
@@ -338,9 +329,7 @@ pub fn format(ts: TokenStream) -> TokenStream {
 
             let sym = mksym(&fs, "derived", false);
             exprs.push(quote!(
-                if f.inner.needs_tag() {
-                    f.inner.istr(&defmt::export::istr(#sym));
-                }
+                f.inner.istr(&defmt::export::istr(#sym));
             ));
             exprs.push(quote!(match self {
                 Self { #(#pats),* } => {
@@ -418,7 +407,7 @@ fn fields(
                         core::write!(format, "{}: {{={}}}", ident, ty).ok();
 
                         if ty == "?" {
-                            list.push(quote!(f.inner.fmt(#ident, false)));
+                            list.push(quote!(f.inner.fmt(#ident)));
                         } else {
                             let method = format_ident!("{}", ty);
                             list.push(quote!(f.inner.#method(#ident)));
@@ -431,7 +420,7 @@ fn fields(
 
                         let ident = format_ident!("arg{}", i);
                         if ty == "?" {
-                            list.push(quote!(f.inner.fmt(#ident, false)));
+                            list.push(quote!(f.inner.fmt(#ident)));
                         } else {
                             let method = format_ident!("{}", ty);
                             list.push(quote!(f.inner.#method(#ident)));
@@ -988,10 +977,7 @@ pub fn write(ts: TokenStream) -> TokenStream {
         let fmt: defmt::Formatter<'_> = #fmt;
         match (fmt.inner, #(&(#args)),*) {
             (_fmt_, #(#pats),*) => {
-                // HACK conditional should not be here; see FIXME in `format`
-                if _fmt_.needs_tag() {
-                    _fmt_.istr(&defmt::export::istr(#sym));
-                }
+                _fmt_.istr(&defmt::export::istr(#sym));
                 #(#exprs;)*
             }
         }
@@ -1123,7 +1109,7 @@ impl Codegen {
                 defmt_parser::Type::IStr => exprs.push(quote!(_fmt_.istr(#arg))),
                 defmt_parser::Type::Char => exprs.push(quote!(_fmt_.u32(&(*#arg as u32)))),
 
-                defmt_parser::Type::Format => exprs.push(quote!(_fmt_.fmt(#arg, false))),
+                defmt_parser::Type::Format => exprs.push(quote!(_fmt_.fmt(#arg))),
                 defmt_parser::Type::FormatSlice => exprs.push(quote!(_fmt_.fmt_slice(#arg))),
                 defmt_parser::Type::FormatArray(len) => exprs.push(quote!(_fmt_.fmt_array({
                     let tmp: &[_; #len] = #arg;

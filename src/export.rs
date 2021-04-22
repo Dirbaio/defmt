@@ -186,10 +186,8 @@ mod sealed {
 
     impl Format for NoneError {
         fn format(&self, fmt: Formatter) {
-            if fmt.inner.needs_tag() {
-                let t = internp!("Unwrap of a None option value");
-                fmt.inner.tag(&t);
-            }
+            let t = internp!("Unwrap of a None option value");
+            fmt.inner.tag(&t);
         }
     }
 
