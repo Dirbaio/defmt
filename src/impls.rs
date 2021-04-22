@@ -1,125 +1,125 @@
 use crate as defmt;
 use defmt_macros::internp;
 
-use crate::{Format, Formatter, Str};
+use crate::{export, Format, Formatter, Str};
 
 impl Format for i8 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=i8}");
-        fmt.tag(&t);
-        fmt.u8(&(*self as u8));
+        export::write_tag(&t);
+        export::write_u8(&(*self as u8));
     }
 }
 
 impl Format for i16 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=i16}");
-        fmt.tag(&t);
-        fmt.u16(&(*self as u16))
+        export::write_tag(&t);
+        export::write_u16(&(*self as u16))
     }
 }
 
 impl Format for i32 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=i32}");
-        fmt.tag(&t);
-        fmt.i32(self);
+        export::write_tag(&t);
+        export::write_i32(self);
     }
 }
 
 impl Format for i64 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=i64}");
-        fmt.tag(&t);
-        fmt.i64(self);
+        export::write_tag(&t);
+        export::write_i64(self);
     }
 }
 
 impl Format for i128 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=i128}");
-        fmt.tag(&t);
-        fmt.i128(self);
+        export::write_tag(&t);
+        export::write_i128(self);
     }
 }
 
 impl Format for isize {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=isize}");
-        fmt.tag(&t);
-        fmt.isize(self);
+        export::write_tag(&t);
+        export::write_isize(self);
     }
 }
 
 impl Format for u8 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=u8}");
-        fmt.tag(&t);
-        fmt.u8(self)
+        export::write_tag(&t);
+        export::write_u8(self)
     }
 }
 
 impl Format for u16 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=u16}");
-        fmt.tag(&t);
-        fmt.u16(self);
+        export::write_tag(&t);
+        export::write_u16(self);
     }
 }
 
 impl Format for u32 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=u32}");
-        fmt.tag(&t);
-        fmt.u32(self);
+        export::write_tag(&t);
+        export::write_u32(self);
     }
 }
 
 impl Format for u64 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=u64}");
-        fmt.tag(&t);
-        fmt.u64(self);
+        export::write_tag(&t);
+        export::write_u64(self);
     }
 }
 
 impl Format for u128 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=u128}");
-        fmt.tag(&t);
-        fmt.u128(self);
+        export::write_tag(&t);
+        export::write_u128(self);
     }
 }
 
 impl Format for usize {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=usize}");
-        fmt.tag(&t);
-        fmt.usize(self);
+        export::write_tag(&t);
+        export::write_usize(self);
     }
 }
 
 impl Format for f32 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=f32}");
-        fmt.tag(&t);
-        fmt.f32(self);
+        export::write_tag(&t);
+        export::write_f32(self);
     }
 }
 
 impl Format for f64 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=f64}");
-        fmt.tag(&t);
-        fmt.f64(self);
+        export::write_tag(&t);
+        export::write_f64(self);
     }
 }
 
 impl Format for str {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = str_tag();
-        fmt.tag(&t);
-        fmt.str(self);
+        export::write_tag(&t);
+        export::write_str(self);
     }
 }
 
@@ -128,18 +128,18 @@ pub(crate) fn str_tag() -> u16 {
 }
 
 impl Format for Str {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=istr}");
-        fmt.tag(&t);
-        fmt.istr(self);
+        export::write_tag(&t);
+        export::write_istr(self);
     }
 }
 
 impl Format for char {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=char}");
-        fmt.tag(&t);
-        fmt.u32(&(*self as u32));
+        export::write_tag(&t);
+        export::write_u32(&(*self as u32));
     }
 }
 
@@ -147,10 +147,10 @@ impl<T> Format for [T]
 where
     T: Format,
 {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=[?]}");
-        fmt.tag(&t);
-        fmt.fmt_slice(self)
+        export::write_tag(&t);
+        export::write_fmt_slice(self)
     }
 }
 
@@ -173,10 +173,10 @@ where
 }
 
 impl Format for bool {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("{=bool}");
-        fmt.tag(&t);
-        fmt.bool(self);
+        export::write_tag(&t);
+        export::write_bool(self);
     }
 }
 
@@ -186,10 +186,10 @@ macro_rules! arrays {
         where
             T: Format
         {
-            fn format(&self, fmt: Formatter) {
+            fn format(&self, _: Formatter) {
                     let t = internp!($fmt);
-                    fmt.tag(&t);
-                fmt.fmt_array(self);
+                    export::write_tag(&t);
+                export::write_fmt_array(self);
             }
         }
     )+ };
@@ -270,11 +270,11 @@ where
 {
     fn format(&self, f: Formatter) {
         let t = internp!("None|Some({=?})");
-        f.tag(&t);
+        export::write_tag(&t);
         match self {
-            None => f.u8(&0),
+            None => export::write_u8(&0),
             Some(x) => {
-                f.u8(&1);
+                export::write_u8(&1);
                 x.format(f)
             }
         }
@@ -288,14 +288,14 @@ where
 {
     fn format(&self, f: Formatter) {
         let t = internp!("Err({=?})|Ok({=?})");
-        f.tag(&t);
+        export::write_tag(&t);
         match self {
             Err(e) => {
-                f.u8(&0);
+                export::write_u8(&0);
                 e.format(f)
             }
             Ok(x) => {
-                f.u8(&1);
+                export::write_u8(&1);
                 x.format(f)
             }
         }
@@ -303,16 +303,16 @@ where
 }
 
 impl Format for () {
-    fn format(&self, f: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("()");
-        f.tag(&t);
+        export::write_tag(&t);
     }
 }
 
 impl<T> Format for core::marker::PhantomData<T> {
-    fn format(&self, f: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = internp!("PhantomData");
-        f.tag(&t);
+        export::write_tag(&t);
     }
 }
 
@@ -320,13 +320,13 @@ macro_rules! tuple {
     ( $format:expr, ($($name:ident),+) ) => (
         impl<$($name:Format),+> Format for ($($name,)+) where last_type!($($name,)+): ?Sized {
             #[allow(non_snake_case, unused_assignments)]
-            fn format(&self, f: Formatter) {
+            fn format(&self, _: Formatter) {
                     let t = internp!($format);
-                    f.tag(&t);
+                    export::write_tag(&t);
 
                 let ($(ref $name,)+) = *self;
                 $(
-                    $name.format(f.reborrow());
+                    $name.format(Formatter::new());
                 )+
             }
         }

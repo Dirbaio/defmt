@@ -175,8 +175,8 @@ pub fn timestamp(ts: TokenStream) -> TokenStream {
             const _: () = {
                 #[allow(unused)]
                 fn defmt_timestamp(fmt: ::defmt::Formatter<'_>) {
-                    match (fmt.reborrow(), #(&(#args)),*) {
-                        (_fmt_, #(#pats),*) => {
+                    match (#(&(#args)),*) {
+                        (#(#pats),*) => {
                             // NOTE: No format string index, and no finalize call.
                             #(#exprs;)*
                         }
@@ -190,8 +190,8 @@ pub fn timestamp(ts: TokenStream) -> TokenStream {
             const _: () = {
                 #[export_name = "_defmt_timestamp"]
                 fn defmt_timestamp(fmt: ::defmt::Formatter<'_>) {
-                    match (fmt.reborrow(), #(&(#args)),*) {
-                        (_fmt_, #(#pats),*) => {
+                    match (#(&(#args)),*) {
+                        (#(#pats),*) => {
                             // NOTE: No format string index, and no finalize call.
                             #(#exprs;)*
                         }
@@ -280,19 +280,19 @@ pub fn format(ts: TokenStream) -> TokenStream {
                         quote!()
                     } else if let (Ok(_), Ok(i)) = (u8::try_from(len), u8::try_from(i)) {
                         quote!(
-                            f.u8(&#i);
+                            defmt::export::write_u8(&#i);
                         )
                     } else if let (Ok(_), Ok(i)) = (u16::try_from(len), u16::try_from(i)) {
                         quote!(
-                            f.u16(&#i);
+                            defmt::export::write_u16(&#i);
                         )
                     } else if let (Ok(_), Ok(i)) = (u32::try_from(len), u32::try_from(i)) {
                         quote!(
-                            f.u32(&#i);
+                            defmt::export::write_u32(&#i);
                         )
                     } else if let (Ok(_), Ok(i)) = (u64::try_from(len), u64::try_from(i)) {
                         quote!(
-                            f.u64(&#i);
+                            defmt::export::write_u64(&#i);
                         )
                     } else {
                         // u128 case is omitted with the assumption, that usize is never greater than u64
@@ -314,7 +314,7 @@ pub fn format(ts: TokenStream) -> TokenStream {
 
                 let sym = mksym(&fs, "derived", false);
                 exprs.push(quote!(
-                    f.istr(&defmt::export::istr(#sym));
+                    defmt::export::write_istr(&defmt::export::istr(#sym));
                 ));
                 exprs.push(quote!(match self {
                     #(#arms)*
@@ -329,7 +329,7 @@ pub fn format(ts: TokenStream) -> TokenStream {
 
             let sym = mksym(&fs, "derived", false);
             exprs.push(quote!(
-                f.istr(&defmt::export::istr(#sym));
+                defmt::export::write_istr(&defmt::export::istr(#sym));
             ));
             exprs.push(quote!(match self {
                 Self { #(#pats),* } => {
@@ -407,10 +407,10 @@ fn fields(
                         core::write!(format, "{}: {{={}}}", ident, ty).ok();
 
                         if ty == "?" {
-                            list.push(quote!(f.fmt(#ident)));
+                            list.push(quote!(defmt::export::write_fmt(#ident)));
                         } else {
-                            let method = format_ident!("{}", ty);
-                            list.push(quote!(f.#method(#ident)));
+                            let method = format_ident!("write_{}", ty);
+                            list.push(quote!(defmt::export::#method(#ident)));
                         }
                         pats.push(quote!( #ident ));
                     } else {
@@ -420,10 +420,10 @@ fn fields(
 
                         let ident = format_ident!("arg{}", i);
                         if ty == "?" {
-                            list.push(quote!(f.fmt(#ident)));
+                            list.push(quote!(defmt::export::write_fmt(#ident)));
                         } else {
-                            let method = format_ident!("{}", ty);
-                            list.push(quote!(f.#method(#ident)));
+                            let method = format_ident!("write_{}", ty);
+                            list.push(quote!(defmt::export::#method(#ident)));
                         }
 
                         let i = syn::Index::from(i);
@@ -508,7 +508,7 @@ fn log(level: Level, log: FormatArgs) -> TokenStream2 {
                 (#(#pats),*) => {
                     defmt::export::acquire();
                     let mut _fmt_ = defmt::Formatter::new();
-                    _fmt_.header(&defmt::export::istr(#sym));
+                    defmt::export::write_header(&defmt::export::istr(#sym));
                     #(#exprs;)*
                     defmt::export::release()
                 }
@@ -975,9 +975,9 @@ pub fn write(ts: TokenStream) -> TokenStream {
     let sym = mksym(&ls, "write", false);
     quote!({
         let fmt: defmt::Formatter<'_> = #fmt;
-        match (fmt.reborrow(), #(&(#args)),*) {
-            (_fmt_, #(#pats),*) => {
-                _fmt_.istr(&defmt::export::istr(#sym));
+        match (#(&(#args)),*) {
+            (#(#pats),*) => {
+                defmt::export::write_istr(&defmt::export::istr(#sym));
                 #(#exprs;)*
             }
         }
@@ -1085,41 +1085,49 @@ impl Codegen {
             // find first use of this argument and return its type
             let param = parsed_params.iter().find(|param| param.index == i).unwrap();
             match param.ty {
-                defmt_parser::Type::I8 => exprs.push(quote!(_fmt_.i8(#arg))),
-                defmt_parser::Type::I16 => exprs.push(quote!(_fmt_.i16(#arg))),
-                defmt_parser::Type::I32 => exprs.push(quote!(_fmt_.i32(#arg))),
-                defmt_parser::Type::I64 => exprs.push(quote!(_fmt_.i64(#arg))),
-                defmt_parser::Type::I128 => exprs.push(quote!(_fmt_.i128(#arg))),
-                defmt_parser::Type::Isize => exprs.push(quote!(_fmt_.isize(#arg))),
+                defmt_parser::Type::I8 => exprs.push(quote!(defmt::export::write_i8(#arg))),
+                defmt_parser::Type::I16 => exprs.push(quote!(defmt::export::write_i16(#arg))),
+                defmt_parser::Type::I32 => exprs.push(quote!(defmt::export::write_i32(#arg))),
+                defmt_parser::Type::I64 => exprs.push(quote!(defmt::export::write_i64(#arg))),
+                defmt_parser::Type::I128 => exprs.push(quote!(defmt::export::write_i128(#arg))),
+                defmt_parser::Type::Isize => exprs.push(quote!(defmt::export::write_isize(#arg))),
 
-                defmt_parser::Type::U8 => exprs.push(quote!(_fmt_.u8(#arg))),
-                defmt_parser::Type::U16 => exprs.push(quote!(_fmt_.u16(#arg))),
-                defmt_parser::Type::U24 => exprs.push(quote!(_fmt_.u24(#arg))),
-                defmt_parser::Type::U32 => exprs.push(quote!(_fmt_.u32(#arg))),
-                defmt_parser::Type::U64 => exprs.push(quote!(_fmt_.u64(#arg))),
-                defmt_parser::Type::U128 => exprs.push(quote!(_fmt_.u128(#arg))),
-                defmt_parser::Type::Usize => exprs.push(quote!(_fmt_.usize(#arg))),
+                defmt_parser::Type::U8 => exprs.push(quote!(defmt::export::write_u8(#arg))),
+                defmt_parser::Type::U16 => exprs.push(quote!(defmt::export::write_u16(#arg))),
+                defmt_parser::Type::U24 => exprs.push(quote!(defmt::export::write_u24(#arg))),
+                defmt_parser::Type::U32 => exprs.push(quote!(defmt::export::write_u32(#arg))),
+                defmt_parser::Type::U64 => exprs.push(quote!(defmt::export::write_u64(#arg))),
+                defmt_parser::Type::U128 => exprs.push(quote!(defmt::export::write_u128(#arg))),
+                defmt_parser::Type::Usize => exprs.push(quote!(defmt::export::write_usize(#arg))),
 
-                defmt_parser::Type::F32 => exprs.push(quote!(_fmt_.f32(#arg))),
-                defmt_parser::Type::F64 => exprs.push(quote!(_fmt_.f64(#arg))),
+                defmt_parser::Type::F32 => exprs.push(quote!(defmt::export::write_f32(#arg))),
+                defmt_parser::Type::F64 => exprs.push(quote!(defmt::export::write_f64(#arg))),
 
-                defmt_parser::Type::Bool => exprs.push(quote!(_fmt_.bool(#arg))),
+                defmt_parser::Type::Bool => exprs.push(quote!(defmt::export::write_bool(#arg))),
 
-                defmt_parser::Type::Str => exprs.push(quote!(_fmt_.str(#arg))),
-                defmt_parser::Type::IStr => exprs.push(quote!(_fmt_.istr(#arg))),
-                defmt_parser::Type::Char => exprs.push(quote!(_fmt_.u32(&(*#arg as u32)))),
+                defmt_parser::Type::Str => exprs.push(quote!(defmt::export::write_str(#arg))),
+                defmt_parser::Type::IStr => exprs.push(quote!(defmt::export::write_istr(#arg))),
+                defmt_parser::Type::Char => {
+                    exprs.push(quote!(defmt::export::write_u32(&(*#arg as u32))))
+                }
 
-                defmt_parser::Type::Format => exprs.push(quote!(_fmt_.fmt(#arg))),
-                defmt_parser::Type::FormatSlice => exprs.push(quote!(_fmt_.fmt_slice(#arg))),
-                defmt_parser::Type::FormatArray(len) => exprs.push(quote!(_fmt_.fmt_array({
-                    let tmp: &[_; #len] = #arg;
-                    tmp
-                }))),
+                defmt_parser::Type::Format => exprs.push(quote!(defmt::export::write_fmt(#arg))),
+                defmt_parser::Type::FormatSlice => {
+                    exprs.push(quote!(defmt::export::write_fmt_slice(#arg)))
+                }
+                defmt_parser::Type::FormatArray(len) => {
+                    exprs.push(quote!(defmt::export::write_fmt_array({
+                        let tmp: &[_; #len] = #arg;
+                        tmp
+                    })))
+                }
 
-                defmt_parser::Type::Debug => exprs.push(quote!(_fmt_.debug(#arg))),
-                defmt_parser::Type::Display => exprs.push(quote!(_fmt_.display(#arg))),
+                defmt_parser::Type::Debug => exprs.push(quote!(defmt::export::write_debug(#arg))),
+                defmt_parser::Type::Display => {
+                    exprs.push(quote!(defmt::export::write_display(#arg)))
+                }
 
-                defmt_parser::Type::U8Slice => exprs.push(quote!(_fmt_.slice(#arg))),
+                defmt_parser::Type::U8Slice => exprs.push(quote!(defmt::export::write_slice(#arg))),
                 // We cast to the expected array type (which should be a no-op cast) to provoke
                 // a type mismatch error on mismatched lengths:
                 // ```
@@ -1132,10 +1140,12 @@ impl Codegen {
                 //    |     expected an array with a fixed size of 3 elements, found one with 2 elements
                 //    |     expected due to this
                 // ```
-                defmt_parser::Type::U8Array(len) => exprs.push(quote!(_fmt_.u8_array({
-                    let tmp: &[u8; #len] = #arg;
-                    tmp
-                }))),
+                defmt_parser::Type::U8Array(len) => {
+                    exprs.push(quote!(defmt::export::write_u8_array({
+                        let tmp: &[u8; #len] = #arg;
+                        tmp
+                    })))
+                }
                 defmt_parser::Type::BitField(_) => {
                     let all_bitfields = parsed_params.iter().filter(|param| param.index == i);
                     let (smallest_bit_index, largest_bit_index) =
@@ -1149,12 +1159,12 @@ impl Codegen {
                     // shift away unneeded lower octet
                     // TODO: create helper for shifting because readability
                     match truncated_sz {
-                        1 => exprs.push(quote!(_fmt_.u8(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
-                        2 => exprs.push(quote!(_fmt_.u16(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
-                        3 => exprs.push(quote!(_fmt_.u24(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
-                        4 => exprs.push(quote!(_fmt_.u32(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
-                        5..=8 => exprs.push(quote!(_fmt_.u64(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
-                        9..=16 => exprs.push(quote!(_fmt_.u128(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
+                        1 => exprs.push(quote!(defmt::export::write_u8(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
+                        2 => exprs.push(quote!(defmt::export::write_u16(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
+                        3 => exprs.push(quote!(defmt::export::write_u24(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
+                        4 => exprs.push(quote!(defmt::export::write_u32(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
+                        5..=8 => exprs.push(quote!(defmt::export::write_u64(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
+                        9..=16 => exprs.push(quote!(defmt::export::write_u128(&defmt::export::truncate((*#arg) >> (#lowest_byte * 8))))),
                         _ => unreachable!(),
                     }
                 }

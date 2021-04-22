@@ -1,4 +1,5 @@
-use crate::Str;
+use crate::{FmtWrite, Format, Formatter, Str};
+use core::fmt::Write;
 
 #[cfg(feature = "unstable-test")]
 thread_local! {
@@ -185,9 +186,9 @@ mod sealed {
     pub struct NoneError;
 
     impl Format for NoneError {
-        fn format(&self, fmt: Formatter) {
+        fn format(&self, _: Formatter) {
             let t = internp!("Unwrap of a None option value");
-            fmt.tag(&t);
+            defmt::export::write_tag(&t);
         }
     }
 
@@ -238,4 +239,153 @@ pub fn panic() -> ! {
         fn _defmt_panic() -> !;
     }
     unsafe { _defmt_panic() }
+}
+
+/// Implementation detail
+pub fn write_fmt(f: &impl Format) {
+    f.format(Formatter::new());
+}
+
+/// Implementation detail
+pub fn write_i8(b: &i8) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_i16(b: &i16) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_i32(b: &i32) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_i64(b: &i64) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_i128(b: &i128) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_isize(b: &isize) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_fmt_slice(values: &[impl Format]) {
+    write_usize(&values.len());
+    for value in values {
+        write_fmt(value);
+    }
+}
+
+// TODO remove
+/// Implementation detail
+pub fn write_prim(s: &Str) {
+    write(&[s.address as u8])
+}
+
+/// Implementation detail
+pub fn write_u8(b: &u8) {
+    write(&[*b])
+}
+
+/// Implementation detail
+pub fn write_u16(b: &u16) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_u24(b: &u32) {
+    write(&b.to_le_bytes()[..3])
+}
+
+/// Implementation detail
+pub fn write_u32(b: &u32) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_u64(b: &u64) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_u128(b: &u128) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_usize(b: &usize) {
+    write(&b.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_f32(b: &f32) {
+    write(&f32::to_bits(*b).to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_f64(b: &f64) {
+    write(&f64::to_bits(*b).to_le_bytes())
+}
+
+pub fn write_str(s: &str) {
+    write_usize(&s.len());
+    write(s.as_bytes());
+}
+
+pub fn write_slice(s: &[u8]) {
+    write_usize(&s.len());
+    write(s);
+}
+
+// NOTE: This is passed `&[u8; N]` – it's just coerced to a slice.
+pub fn write_u8_array(a: &[u8]) {
+    write(a);
+}
+
+// NOTE: This is passed `&[u8; N]` – it's just coerced to a slice.
+pub fn write_fmt_array(a: &[impl Format]) {
+    for value in a {
+        write_fmt(value);
+    }
+}
+
+/// Implementation detail
+pub fn write_tag(tag: &u16) {
+    write(&tag.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_istr(s: &Str) {
+    write(&s.address.to_le_bytes())
+}
+
+/// Implementation detail
+pub fn write_bool(b: &bool) {
+    write_u8(&(*b as u8));
+}
+
+/// Implementation detail
+pub fn write_debug(val: &dyn core::fmt::Debug) {
+    core::write!(FmtWrite, "{:?}", val).ok();
+    write(&[0xff]);
+}
+
+/// Implementation detail
+pub fn write_display(val: &dyn core::fmt::Display) {
+    core::write!(FmtWrite, "{}", val).ok();
+    write(&[0xff]);
+}
+
+#[inline(never)]
+pub fn write_header(s: &Str) {
+    write_istr(s);
+    timestamp(Formatter::new());
 }

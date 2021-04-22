@@ -22,7 +22,6 @@ extern crate alloc;
 use crate as defmt;
 
 use core::fmt;
-use core::fmt::Write as _;
 use core::marker::PhantomData;
 
 #[doc(hidden)]
@@ -327,6 +326,7 @@ pub struct Str {
     address: u16,
 }
 
+struct FmtWrite;
 /// Handle to a defmt logger.
 pub struct Formatter<'a> {
     _phantom: PhantomData<&'a mut ()>,
@@ -340,200 +340,11 @@ impl<'a> Formatter<'a> {
             _phantom: PhantomData,
         }
     }
-
-    pub fn reborrow<'b>(&'b self) -> Formatter<'b> {
-        Formatter::new()
-    }
-
-    /// Only for testing
-    #[cfg(feature = "unstable-test")]
-    pub fn bytes(&self) -> &[u8] {
-        self.finalize();
-        &self.bytes
-    }
-
-    #[cfg(feature = "unstable-test")]
-    pub fn write(&self, bytes: &[u8]) {
-        self.bytes.extend_from_slice(bytes)
-    }
-
-    #[cfg(not(feature = "unstable-test"))]
-    pub fn write(&self, bytes: &[u8]) {
-        export::write(bytes)
-    }
-
-    // TODO turn these public methods in `export` free functions
-    /// Implementation detail
-    pub fn fmt(&self, f: &impl Format) {
-        f.format(self.reborrow());
-    }
-
-    /// Implementation detail
-    pub fn i8(&self, b: &i8) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn i16(&self, b: &i16) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn i32(&self, b: &i32) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn i64(&self, b: &i64) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn i128(&self, b: &i128) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn isize(&self, b: &isize) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn fmt_slice(&self, values: &[impl Format]) {
-        self.usize(&values.len());
-        for value in values {
-            self.fmt(value);
-        }
-    }
-
-    // TODO remove
-    /// Implementation detail
-    pub fn prim(&self, s: &Str) {
-        self.write(&[s.address as u8])
-    }
-
-    /// Implementation detail
-    pub fn u8(&self, b: &u8) {
-        self.write(&[*b])
-    }
-
-    /// Implementation detail
-    pub fn u16(&self, b: &u16) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn u24(&self, b: &u32) {
-        self.write(&b.to_le_bytes()[..3])
-    }
-
-    /// Implementation detail
-    pub fn u32(&self, b: &u32) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn u64(&self, b: &u64) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn u128(&self, b: &u128) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn usize(&self, b: &usize) {
-        self.write(&b.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn f32(&self, b: &f32) {
-        self.write(&f32::to_bits(*b).to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn f64(&self, b: &f64) {
-        self.write(&f64::to_bits(*b).to_le_bytes())
-    }
-
-    pub fn str(&self, s: &str) {
-        self.usize(&s.len());
-        self.write(s.as_bytes());
-    }
-
-    pub fn slice(&self, s: &[u8]) {
-        self.usize(&s.len());
-        self.write(s);
-    }
-
-    // NOTE: This is passed `&[u8; N]` – it's just coerced to a slice.
-    pub fn u8_array(&self, a: &[u8]) {
-        self.write(a);
-    }
-
-    // NOTE: This is passed `&[u8; N]` – it's just coerced to a slice.
-    pub fn fmt_array(&self, a: &[impl Format]) {
-        for value in a {
-            self.fmt(value);
-        }
-    }
-
-    /// Implementation detail
-    pub fn tag(&self, tag: &u16) {
-        self.write(&tag.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn istr(&self, s: &Str) {
-        self.write(&s.address.to_le_bytes())
-    }
-
-    /// Implementation detail
-    pub fn bool(&self, b: &bool) {
-        self.u8(&(*b as u8));
-    }
-
-    /// Implementation detail
-    pub fn debug(&self, val: &dyn core::fmt::Debug) {
-        core::write!(
-            FmtWrite {
-                fmt: self.reborrow()
-            },
-            "{:?}",
-            val
-        )
-        .ok();
-        self.write(&[0xff]);
-    }
-
-    /// Implementation detail
-    pub fn display(&self, val: &dyn core::fmt::Display) {
-        core::write!(
-            FmtWrite {
-                fmt: self.reborrow()
-            },
-            "{}",
-            val
-        )
-        .ok();
-        self.write(&[0xff]);
-    }
-
-    #[inline(never)]
-    pub fn header(&self, s: &Str) {
-        self.istr(s);
-        export::timestamp(self.reborrow());
-    }
 }
 
-struct FmtWrite<'a> {
-    fmt: Formatter<'a>,
-}
-
-impl fmt::Write for FmtWrite<'_> {
+impl fmt::Write for FmtWrite {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.fmt.write(s.as_bytes());
+        export::write(s.as_bytes());
         Ok(())
     }
 }
@@ -584,7 +395,7 @@ pub trait Format {
 }
 
 #[export_name = "__defmt_default_timestamp"]
-fn default_timestamp(_f: Formatter<'_>) {
+fn default_timestamp() {
     // By default, no timestamp is used.
 }
 
@@ -618,10 +429,10 @@ fn default_panic() -> ! {
 pub struct Debug2Format<'a, T: fmt::Debug + ?Sized>(pub &'a T);
 
 impl<T: fmt::Debug + ?Sized> Format for Debug2Format<'_, T> {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = defmt_macros::internp!("{=__internal_Debug}");
-        fmt.tag(&t);
-        fmt.debug(&self.0);
+        export::write_tag(&t);
+        export::write_debug(&self.0);
     }
 }
 
@@ -652,9 +463,9 @@ impl<T: fmt::Debug + ?Sized> Format for Debug2Format<'_, T> {
 pub struct Display2Format<'a, T: fmt::Display + ?Sized>(pub &'a T);
 
 impl<T: fmt::Display + ?Sized> Format for Display2Format<'_, T> {
-    fn format(&self, fmt: Formatter) {
+    fn format(&self, _: Formatter) {
         let t = defmt_macros::internp!("{=__internal_Display}");
-        fmt.tag(&t);
-        fmt.display(&self.0);
+        export::write_tag(&t);
+        export::write_display(&self.0);
     }
 }
